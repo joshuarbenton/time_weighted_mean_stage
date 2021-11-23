@@ -1,4 +1,5 @@
 #Author: Joshua R Benton
+#Date: 08/01/2021
 
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
@@ -17,26 +18,32 @@ ui <- fluidPage(
   
   titlePanel("Time-Weighted Mean Stage Calculator"),
   
-  sidebarLayout(
+  fluidRow(
     
-    sidebarPanel(
+    column(3, 
+    sidebarPanel( width = "100%",
       textInput("Site","Input NWIS Site Number", "02198950") ,
       textInput("date","Measurement Date (YYYY-MM-DD)",as.character(Sys.Date())) ,
       textInput("start", "Measurement Start Time (hh:mm:ss) EST", "00:05:00") ,
       textInput("end", "Measurement End Time (hh:mm:ss) EST", "03:02:00") ,
       actionButton("NWIS", "Pull NWIS Data") ,
     
-    ),
-    
-    mainPanel(
-      plotOutput("stageplot", height = "400") , 
+    )),
+    column(6, 
+   
+      plotOutput("stageplot") , 
+     # plotOutput("legend", height = "400") , 
       textOutput("text") ,
       textOutput("text2") ,
       textOutput("text3") ,
       textOutput("text4") ,
       textOutput("text5")
-    )
-  )
+  
+    ) ,
+    column(2,
+           plotOutput("Legend") )
+  
+)
 )
 
 server <- function(input, output, session) {
@@ -70,8 +77,8 @@ server <- function(input, output, session) {
     #NWIS stage during measurement
     stage = subset(stage, stage$dateTime >=  dateTime_1 & stage$dateTime <= dateTime_2)
     
-   
     #For measurements greater than 15 minutes
+    
     if (nrow(stage) > 2) {
       
       #Creates a data frame with two additional rows for the measurement start time, end time, and interpolated stage values
@@ -100,7 +107,7 @@ server <- function(input, output, session) {
       #Change in time for assigning weights
       meas$dt = NA
       
-      #Change in stage
+      #Mean stage
       meas$ms = NA
       
       for (i in 2:(nrow(meas)-2)) {
@@ -124,7 +131,8 @@ server <- function(input, output, session) {
       line_segment = stage[1:2,]
       line_segment2 = stage[(nrow(stage)-1):nrow(stage),]
       
-      #For measurements less than 12 minutes
+      #For measurements less than 15 minutes
+      
     } else  {
       
       
@@ -170,20 +178,28 @@ server <- function(input, output, session) {
     
     output$stageplot <- renderPlot({
       
+      par(mar = c(8,3,3,0))
       
-      ggplot(meas, aes(dateTime,X_00065_00000 )) + geom_point(size = 2) + theme_bw(15) +
+      ggplot(stage, aes(dateTime,X_00065_00000)) + geom_point(size = 2) + theme_bw(16) +
         geom_vline(xintercept = start_datetime, color = "red", linetype = "solid") +
         geom_vline(xintercept = end_datetime, color = "red", linetype = "solid") +
-        geom_point(aes(x = end_datetime, y = stage_end), color = "gray", size = 2) +
-        geom_point(aes(x = start_datetime, y = stage_start), color = "gray", size = 2) +
+        geom_point(aes(x = end_datetime, y = stage_end), color = "red", pch = 16, cex = 2.3) +
+        geom_point(aes(x = start_datetime, y = stage_start), color = "red",pch = 16, cex = 2.3) +
         xlab("Time (EST)") + ylab("Stage (ft)") +
-        labs(color = "") +
         ggtitle(siteNAME) +
-        scale_color_manual(values=c("black","red")) +
-        geom_line(data = line_segment, aes(dateTime,X_00065_00000), color = "black", lty = 2) +
-        geom_line(data = line_segment2, aes(dateTime,X_00065_00000), color = "black", lty = 2) 
+        geom_line(data = line_segment, aes(dateTime,X_00065_00000), color = "red", lty = 2) +
+        geom_line(data = line_segment2, aes(dateTime,X_00065_00000), color = "red", lty = 2) 
       
+  
      
+    } )
+    output$Legend <- renderPlot({
+      
+      par(mar = c(0,0,0,0))
+      plot(5,5, col ="white", bty = "n",xaxt = 'n', yaxt = 'n', xlim = c(3,5))
+      legend(3,6.7, bty = 'n',  legend = c("NWIS Data","Measurement", "Interpolation"), lty = c(NA,1,2), pch = c(19,NA,19), col = c("black","red","red"), cex = 1.1)
+      
+      
     } )
   
     output$text <- renderText({text})
